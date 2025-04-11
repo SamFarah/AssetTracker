@@ -1,35 +1,35 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
+﻿using System.Data.SQLite;
 
 namespace AssetTracker;
 
 class Program
 {
-    // Models
+
+    static string connectionString = "Data Source=AssetTracker.db;Version=3;";
+
+
     class User
     {
-        public int Id { get; set; }
+        public long Id { get; set; }
         public string Name { get; set; }
     }
 
     class Asset
     {
-        public int Id { get; set; }
+        public long Id { get; set; }
         public string Name { get; set; }
         public string Type { get; set; }
         public string SerialNumber { get; set; }
         public int? AssignedUserId { get; set; }
     }
 
-    // Data Stores
-    static List<User> users = new List<User>();
-    static List<Asset> assets = new List<Asset>();
-    static int userIdCounter = 1;
-    static int assetIdCounter = 1;
+    //static List<User> users = new List<User>();
+    //static List<Asset> assets = new List<Asset>();
+
 
     static void Main(string[] args)
     {
+        EnsureDatabase();
         while (true)
         {
             Console.Clear();
@@ -62,6 +62,36 @@ class Program
         }
     }
 
+    /// <summary>
+    /// Create a database schama if it doenst exist
+    /// </summary>
+    static void EnsureDatabase()
+    {
+        using var conn = new SQLiteConnection(connectionString);
+        conn.Open();
+
+        string createUsers = @"CREATE TABLE IF NOT EXISTS Users (
+                Id INTEGER PRIMARY KEY AUTOINCREMENT,
+                Name TEXT NOT NULL
+            );";
+
+        string createAssets = @"CREATE TABLE IF NOT EXISTS Assets (
+                Id INTEGER PRIMARY KEY AUTOINCREMENT,
+                Name TEXT NOT NULL,
+                Type TEXT,
+                SerialNumber TEXT,
+                AssignedUserId INTEGER,
+                FOREIGN KEY (AssignedUserId) REFERENCES Users(Id)
+            );";
+
+        using var cmd1 = new SQLiteCommand(createUsers, conn);
+        using var cmd2 = new SQLiteCommand(createAssets, conn);
+        cmd1.ExecuteNonQuery();
+        cmd2.ExecuteNonQuery();
+    }
+
+    
+
     static void AddUser()
     {
         Console.Clear();
@@ -69,21 +99,30 @@ class Program
         Console.Write("User Name: ");
         string name = Console.ReadLine();
 
-        users.Add(new User
+        var user = new User
         {
-            Id = userIdCounter++,
             Name = name
-        });
+        };
 
-        Console.WriteLine("User added. Press any key to return to menu.");
+        using var conn = new SQLiteConnection(connectionString);
+        conn.Open();
+
+        string sql = "INSERT INTO Users (Name) VALUES (@name)";
+        using var cmd = new SQLiteCommand(sql, conn);
+        cmd.Parameters.AddWithValue("@name", user.Name);
+        cmd.ExecuteNonQuery();
+        cmd.CommandText = "select last_insert_rowid()";
+        user.Id = (long)cmd.ExecuteScalar();
+
+        Console.WriteLine($"User added (Id: {user.Id}). Press any key to return to menu.");
         Console.ReadKey();
     }
+
 
     static void AddAsset()
     {
         Console.Clear();
         Console.WriteLine("=== Add New Asset ===");
-
         Console.Write("Asset Name: ");
         string name = Console.ReadLine();
 
@@ -93,71 +132,78 @@ class Program
         Console.Write("Serial Number: ");
         string serial = Console.ReadLine();
 
-        assets.Add(new Asset
+        var asset = new Asset
         {
-            Id = assetIdCounter++,
             Name = name,
             Type = type,
             SerialNumber = serial,
             AssignedUserId = null
-        });
+        };
 
-        Console.WriteLine("Asset added. Press any key to return to menu.");
+        using var conn = new SQLiteConnection(connectionString);
+        conn.Open();
+
+        string sql = "INSERT INTO Assets (Name, Type, SerialNumber) VALUES (@name, @type, @serial)";
+        using var cmd = new SQLiteCommand(sql, conn);
+        cmd.Parameters.AddWithValue("@name", asset.Name);
+        cmd.Parameters.AddWithValue("@type", asset.Type);
+        cmd.Parameters.AddWithValue("@serial", asset.SerialNumber);
+        cmd.ExecuteNonQuery();
+        cmd.CommandText = "select last_insert_rowid()";
+        asset.Id = (long)cmd.ExecuteScalar();
+
+        Console.WriteLine($"Asset added (Id: {asset.Id}). Press any key to return to menu.");
         Console.ReadKey();
     }
+
+
 
     static void AssignAsset()
     {
         Console.Clear();
         Console.WriteLine("=== Assign Asset to User ===");
 
-        if (!assets.Any())
-        {
-            Console.WriteLine("No assets to assign.");
-            Console.ReadKey();
-            return;
-        }
+        using var conn = new SQLiteConnection(connectionString);
+        conn.Open();
 
-        if (!users.Any())
-        {
-            Console.WriteLine("No users available. Add a user first.");
-            Console.ReadKey();
-            return;
-        }
-
+        // Show assets
         Console.WriteLine("Assets:");
-        foreach (var asset in assets)
+        using var assetCmd = new SQLiteCommand("SELECT Id, Name FROM Assets", conn);
+        using var assetReader = assetCmd.ExecuteReader();
+        while (assetReader.Read())
         {
-            Console.WriteLine($"{asset.Id}. {asset.Name} ({asset.SerialNumber})");
+            Console.WriteLine($"{assetReader["Id"]}. {assetReader["Name"]}");
         }
+        assetReader.Close();
 
         Console.Write("Enter Asset ID to assign: ");
         int assetId = int.Parse(Console.ReadLine());
 
+        // Show users
         Console.WriteLine("Users:");
-        foreach (var user in users)
+        using var userCmd = new SQLiteCommand("SELECT Id, Name FROM Users", conn);
+        using var userReader = userCmd.ExecuteReader();
+        while (userReader.Read())
         {
-            Console.WriteLine($"{user.Id}. {user.Name}");
+            Console.WriteLine($"{userReader["Id"]}. {userReader["Name"]}");
         }
+        userReader.Close();
 
         Console.Write("Enter User ID to assign asset to: ");
         int userId = int.Parse(Console.ReadLine());
 
-        var assetToAssign = assets.FirstOrDefault(a => a.Id == assetId);
-        var userToAssign = users.FirstOrDefault(u => u.Id == userId);
+        // Update
+        string sql = "UPDATE Assets SET AssignedUserId = @userId WHERE Id = @assetId";
+        using var updateCmd = new SQLiteCommand(sql, conn);
+        updateCmd.Parameters.AddWithValue("@userId", userId);
+        updateCmd.Parameters.AddWithValue("@assetId", assetId);
+        int affected = updateCmd.ExecuteNonQuery();
 
-        if (assetToAssign != null && userToAssign != null)
-        {
-            assetToAssign.AssignedUserId = userId;
-            Console.WriteLine("Asset assigned. Press any key to return to menu.");
-        }
-        else
-        {
-            Console.WriteLine("Invalid IDs entered.");
-        }
-
+        Console.WriteLine(affected > 0 ? "Asset assigned." : "Assignment failed.");
+        Console.WriteLine("Press any key to return to menu.");
         Console.ReadKey();
     }
+
 
     static void UpdateAsset()
     {
@@ -167,32 +213,54 @@ class Program
         Console.Write("Enter Asset ID to update: ");
         int id = int.Parse(Console.ReadLine());
 
-        var asset = assets.FirstOrDefault(a => a.Id == id);
-        if (asset == null)
+        using var conn = new SQLiteConnection(connectionString);
+        conn.Open();
+
+        string getSql = "SELECT Name, Type, SerialNumber FROM Assets WHERE Id = @id";
+        using var getCmd = new SQLiteCommand(getSql, conn);
+        getCmd.Parameters.AddWithValue("@id", id);
+
+        using var reader = getCmd.ExecuteReader();
+        if (!reader.Read())
         {
             Console.WriteLine("Asset not found.");
             Console.ReadKey();
             return;
         }
 
-        Console.Write($"New Name (Leave empty to keep '{asset.Name}'): ");
+        string oldName = reader["Name"].ToString();
+        string oldType = reader["Type"].ToString();
+        string oldSerial = reader["SerialNumber"].ToString();
+        reader.Close();
+
+        Console.Write($"New Name (Leave empty to keep '{oldName}'): ");
         string newName = Console.ReadLine();
-        if (!string.IsNullOrWhiteSpace(newName))
-            asset.Name = newName;
+        if (string.IsNullOrWhiteSpace(newName)) newName = oldName;
 
-        Console.Write($"New Type (Leave empty to keep '{asset.Type}'): ");
+        Console.Write($"New Type (Leave empty to keep '{oldType}'): ");
         string newType = Console.ReadLine();
-        if (!string.IsNullOrWhiteSpace(newType))
-            asset.Type = newType;
+        if (string.IsNullOrWhiteSpace(newType)) newType = oldType;
 
-        Console.Write($"New Serial Number (Leave empty to keep '{asset.SerialNumber}'): ");
+        Console.Write($"New Serial Number (Leave empty to keep '{oldSerial}'): ");
         string newSerial = Console.ReadLine();
-        if (!string.IsNullOrWhiteSpace(newSerial))
-            asset.SerialNumber = newSerial;
+        if (string.IsNullOrWhiteSpace(newSerial)) newSerial = oldSerial;
+
+        string updateSql = @"UPDATE Assets 
+                         SET Name = @name, Type = @type, SerialNumber = @serial 
+                         WHERE Id = @id";
+
+        using var updateCmd = new SQLiteCommand(updateSql, conn);
+        updateCmd.Parameters.AddWithValue("@name", newName);
+        updateCmd.Parameters.AddWithValue("@type", newType);
+        updateCmd.Parameters.AddWithValue("@serial", newSerial);
+        updateCmd.Parameters.AddWithValue("@id", id);
+
+        updateCmd.ExecuteNonQuery();
 
         Console.WriteLine("Asset updated. Press any key to return to menu.");
         Console.ReadKey();
     }
+
 
     static void DeleteAsset()
     {
@@ -202,43 +270,49 @@ class Program
         Console.Write("Enter Asset ID to delete: ");
         int id = int.Parse(Console.ReadLine());
 
-        var asset = assets.FirstOrDefault(a => a.Id == id);
-        if (asset != null)
-        {
-            assets.Remove(asset);
-            Console.WriteLine("Asset deleted.");
-        }
-        else
-        {
-            Console.WriteLine("Asset not found.");
-        }
+        using var conn = new SQLiteConnection(connectionString);
+        conn.Open();
 
+        string sql = "DELETE FROM Assets WHERE Id = @id";
+        using var cmd = new SQLiteCommand(sql, conn);
+        cmd.Parameters.AddWithValue("@id", id);
+        int affected = cmd.ExecuteNonQuery();
+
+        Console.WriteLine(affected > 0 ? "Asset deleted." : "Asset not found.");
         Console.WriteLine("Press any key to return to menu.");
         Console.ReadKey();
     }
+
 
     static void ViewAssets()
     {
         Console.Clear();
         Console.WriteLine("=== All Assets ===");
 
-        if (!assets.Any())
+        using var conn = new SQLiteConnection(connectionString);
+        conn.Open();
+
+        string sql = @"SELECT A.Id, A.Name, A.Type, A.SerialNumber, 
+                          U.Name AS AssignedTo
+                   FROM Assets A
+                   LEFT JOIN Users U ON A.AssignedUserId = U.Id";
+
+        using var cmd = new SQLiteCommand(sql, conn);
+        using var reader = cmd.ExecuteReader();
+
+        if (!reader.HasRows)
         {
             Console.WriteLine("No assets found.");
         }
         else
         {
-            foreach (var asset in assets)
+            while (reader.Read())
             {
-                var assignedUser = asset.AssignedUserId.HasValue
-                    ? users.FirstOrDefault(u => u.Id == asset.AssignedUserId)?.Name
-                    : "Unassigned";
-
-                Console.WriteLine($"ID: {asset.Id}");
-                Console.WriteLine($"Name: {asset.Name}");
-                Console.WriteLine($"Type: {asset.Type}");
-                Console.WriteLine($"Serial #: {asset.SerialNumber}");
-                Console.WriteLine($"Assigned To: {assignedUser}");
+                Console.WriteLine($"ID: {reader["Id"]}");
+                Console.WriteLine($"Name: {reader["Name"]}");
+                Console.WriteLine($"Type: {reader["Type"]}");
+                Console.WriteLine($"Serial #: {reader["SerialNumber"]}");
+                Console.WriteLine($"Assigned To: {reader["AssignedTo"] ?? "Unassigned"}");
                 Console.WriteLine("-------------------------------------");
             }
         }
@@ -246,4 +320,5 @@ class Program
         Console.WriteLine("Press any key to return to menu.");
         Console.ReadKey();
     }
+
 }

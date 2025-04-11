@@ -2,5 +2,9 @@
 	<PropertyGroup>
 		<OutputType>exe</OutputType>
 		<TargetFramework>net9.0</TargetFramework>
+		<ImplicitUsings>enable</ImplicitUsings>
 	</PropertyGroup>
+	<ItemGroup>
+	  <PackageReference Include="System.Data.SQLite" Version="1.0.119" />
+	</ItemGroup>
 </Project>
