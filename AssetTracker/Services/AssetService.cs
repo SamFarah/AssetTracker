@@ -7,12 +7,12 @@ public class AssetService(AssetRepo assets, UserRepo users)
     private readonly AssetRepo _assets = assets;
     private readonly UserRepo _users = users;
 
-    public void ViewAssets()
+    public async Task ViewAssetsAsync()
     {
         Console.Clear();
         Console.WriteLine("=== All Assets ===");
 
-        var assets = _assets.GetAllAssets();
+        var assets =await  _assets.GetAllAssetsAsync();
 
         if (assets.Count == 0) Console.WriteLine("No assets found.");
         else
@@ -32,7 +32,7 @@ public class AssetService(AssetRepo assets, UserRepo users)
         Console.ReadKey();
     }
 
-    public void AddAsset()
+    public async Task AddAssetAsync()
     {
         Console.Clear();
         Console.WriteLine("=== Add New Asset ===");
@@ -53,13 +53,13 @@ public class AssetService(AssetRepo assets, UserRepo users)
             AssignedUserId = null
         };
 
-        _assets.AddAssetToDB(asset);
+        await _assets.AddAssetToDBAsync(asset);
 
         Console.WriteLine($"Asset added (Id: {asset.Id}). Press any key to return to menu.");
         Console.ReadKey();
     }
 
-    public void AssignAsset()
+    public async Task AssignAssetAsync()
     {
         Console.Clear();
         Console.WriteLine("=== Assign Asset to User ===");
@@ -67,7 +67,7 @@ public class AssetService(AssetRepo assets, UserRepo users)
 
         // Show assets
         Console.WriteLine("Assets:");
-        var assets = _assets.GetAllAssets();
+        var assets = await _assets.GetAllAssetsAsync();
         assets.ForEach(asset => Console.WriteLine($"{asset.Id}. {asset.Name}"));
 
 
@@ -76,7 +76,7 @@ public class AssetService(AssetRepo assets, UserRepo users)
 
         // Show users
         Console.WriteLine("Users:");
-        var users = _users.GetAllAUsers();
+        var users = await _users.GetAllAUsersAsync();
         users.ForEach(user => Console.WriteLine($"{user.Id}. {user.Name}"));
 
 
@@ -85,14 +85,14 @@ public class AssetService(AssetRepo assets, UserRepo users)
 
         // Update
 
-        var affected = _assets.AssignAssetToUser(assetId, userId);
+        var affected = await _assets.AssignAssetToUserAsync(assetId, userId);
         Console.WriteLine(affected > 0 ? "Asset assigned." : "Assignment failed.");
         Console.WriteLine("Press any key to return to menu.");
         Console.ReadKey();
     }
 
 
-    public void DeleteAsset()
+    public async Task DeleteAssetAsync()
     {
         Console.Clear();
         Console.WriteLine("=== Delete Asset ===");
@@ -100,14 +100,14 @@ public class AssetService(AssetRepo assets, UserRepo users)
         Console.Write("Enter Asset ID to delete: ");
         int id = int.Parse(Console.ReadLine());
 
-        var affected = _assets.DeleteAsset(id);
+        var affected = await _assets.DeleteAssetAsync(id);
 
         Console.WriteLine(affected > 0 ? "Asset deleted." : "Asset not found.");
         Console.WriteLine("Press any key to return to menu.");
         Console.ReadKey();
     }
 
-    public void UpdateAsset()
+    public async Task UpdateAssetAsync()
     {
         Console.Clear();
         Console.WriteLine("=== Update Asset ===");
@@ -116,7 +116,7 @@ public class AssetService(AssetRepo assets, UserRepo users)
         int id = int.Parse(Console.ReadLine());
 
 
-        var asset = _assets.GetAssetById(id);
+        var asset = await _assets.GetAssetByIdAsync(id);
         if (asset == null)
         {
             Console.WriteLine("Asset not found.");
@@ -136,7 +136,7 @@ public class AssetService(AssetRepo assets, UserRepo users)
         string newSerial = Console.ReadLine();
         if (!string.IsNullOrWhiteSpace(newSerial)) asset.SerialNumber = newSerial;
 
-        _assets.UpdateAsset(asset);
+        await _assets.UpdateAssetAsync(asset);
 
         Console.WriteLine("Asset updated. Press any key to return to menu.");
         Console.ReadKey();

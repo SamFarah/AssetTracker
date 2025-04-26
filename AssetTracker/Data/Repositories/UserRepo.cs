@@ -1,63 +1,29 @@
 ﻿using AssetTracker.Data.Entities;
-using System.Data.SQLite;
+using Microsoft.EntityFrameworkCore;
+
 
 namespace AssetTracker.Data.Repositories;
 public class UserRepo(AssetTrackerDbContext db)
 {
     private readonly AssetTrackerDbContext _db = db;
 
-    public List<User> GetAllAUsers()
+    public async Task<List<User>> GetAllAUsersAsync() => await _db.Users.ToListAsync();
+
+    public async Task AddUserToDBAsync(User user)
     {
-        using var conn = _db.GetConnection();
-        conn.Open();
-        using var cmd = new SQLiteCommand("SELECT Id, Name FROM Users", conn);
-        using var userReader = cmd.ExecuteReader();
-        List<User> users = [];
-        while (userReader.Read())
+        try
         {
-            users.Add(new()
-            {
-                Id = userReader.GetInt32(userReader.GetOrdinal("Id")),
-                Name = userReader.GetString(userReader.GetOrdinal("Name")),
-            });
+            await _db.Users.AddAsync(user);
+            await _db.SaveChangesAsync();
         }
-        userReader.Close();
-        return users;
-    }
-
-    public void AddUserToDB(User user)
-    {
-        using var conn = _db.GetConnection();
-        conn.Open();
-
-        string sql = "INSERT INTO Users (Name) VALUES (@name)";
-        using var cmd = new SQLiteCommand(sql, conn);
-        cmd.Parameters.AddWithValue("@name", user.Name);
-
-        cmd.ExecuteNonQuery();
-        cmd.CommandText = "select last_insert_rowid()";
-        user.Id = (long)cmd.ExecuteScalar();
-    }
-
-    public User GetUserById(int userId)
-    {
-        using var conn = _db.GetConnection();
-        conn.Open();
-
-        using var cmd = new SQLiteCommand("SELECT Id, Name FROM Users where Id = @id", conn);
-        cmd.Parameters.AddWithValue("@id", userId);
-        using var userReader = cmd.ExecuteReader();
-
-        if (userReader.Read())
+        catch (Exception ex)
         {
-            return new()
-            {
-                Id = userReader.GetInt32(userReader.GetOrdinal("Id")),
-                Name = userReader.GetString(userReader.GetOrdinal("Name")),
-            };
-        }
-        userReader.Close();
-        return null;
 
+            throw;
+        }
     }
+
+    public async Task<User> GetUserByIdAsync(int userId) =>
+        await _db.Users.FirstOrDefaultAsync(x => x.Id == userId);
+
 }
