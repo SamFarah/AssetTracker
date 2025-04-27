@@ -1,7 +1,7 @@
-﻿using AssetTracker.Data.Entities;
+﻿using AssetTracker.Backend.Data.Entities;
 using Microsoft.EntityFrameworkCore;
 
-namespace AssetTracker.Data.Repositories;
+namespace AssetTracker.Backend.Data.Repositories;
 public class AssetRepo(AssetTrackerDbContext db)
 {
     private readonly AssetTrackerDbContext _db = db;
@@ -13,19 +13,16 @@ public class AssetRepo(AssetTrackerDbContext db)
             await _db.Assets.AddAsync(asset);
             await _db.SaveChangesAsync();
         }
-        catch (Exception ex)
+        catch (Exception)// place holder for now
         {
-
             throw;
         }
-
     }
 
     public async Task<List<Asset>> GetAllAssetsAsync() => await _db.Assets.ToListAsync();
 
     public async Task<int> AssignAssetToUserAsync(int assetId, int userId)
     {
-
         var asset = _db.Assets.Find(assetId);
         var user = _db.Users.Find(userId);
         if (asset == null) throw new Exception($"Asset with id {assetId} not found");
@@ -36,8 +33,7 @@ public class AssetRepo(AssetTrackerDbContext db)
 
     public async Task<int> DeleteAssetAsync(int assetId)
     {
-        var asset = _db.Assets.Find(assetId);
-        if (asset == null) throw new Exception($"Asset with id {assetId} not found");
+        var asset = _db.Assets.Find(assetId) ?? throw new Exception($"Asset with id {assetId} not found");
         _db.Assets.Remove(asset);
         return await _db.SaveChangesAsync();
     }

@@ -1,8 +1,8 @@
-﻿using AssetTracker.Data.Entities;
+﻿using AssetTracker.Backend.Data.Entities;
 using Microsoft.EntityFrameworkCore;
 
 
-namespace AssetTracker.Data.Repositories;
+namespace AssetTracker.Backend.Data.Repositories;
 public class UserRepo(AssetTrackerDbContext db)
 {
     private readonly AssetTrackerDbContext _db = db;
@@ -16,9 +16,8 @@ public class UserRepo(AssetTrackerDbContext db)
             await _db.Users.AddAsync(user);
             await _db.SaveChangesAsync();
         }
-        catch (Exception ex)
+        catch (Exception )// place holder for now
         {
-
             throw;
         }
     }

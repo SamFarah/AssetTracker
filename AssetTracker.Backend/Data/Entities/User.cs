@@ -1,10 +1,10 @@
 ﻿using System.ComponentModel.DataAnnotations;
 
-namespace AssetTracker.Data.Entities;
+namespace AssetTracker.Backend.Data.Entities;
 
 public class User
 {
-    [Key]   
+    [Key]
     public int Id { get; set; }
     public string Name { get; set; }
     public virtual List<Asset> AssignedAssets { get; set; }

@@ -1,7 +1,7 @@
 ﻿using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 
-namespace AssetTracker.Data.Entities;
+namespace AssetTracker.Backend.Data.Entities;
 public class Asset
 {
     [Key]
@@ -9,7 +9,7 @@ public class Asset
     public string Name { get; set; }
     public string Type { get; set; }
     public string SerialNumber { get; set; }
-  
+
     public int? AssignedUserId { get; set; }
 
     [ForeignKey("AssignedUserId")]
